@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#edf3ef" />
+    <title>Study Timer</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #edf3ef;
+        --ink: #19362f;
+        --muted: #63766f;
+        --line: #cbd8d1;
+        --green: #1d5948;
+        --green-deep: #143f34;
+        --coral: #df6548;
+        --coral-dark: #bd4e35;
+        --yellow: #e8b84f;
+        --white: #fbfdfb;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-width: 320px;
+        min-height: 100vh;
+        margin: 0;
+        background-color: var(--paper);
+        background-image: radial-gradient(#b7c9c0 0.75px, transparent 0.75px);
+        background-size: 19px 19px;
+        color: var(--ink);
+        font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+      }
+
+      .page {
+        display: grid;
+        min-height: 100vh;
+        grid-template-rows: auto 1fr auto;
+        padding: 28px clamp(20px, 6vw, 84px) 20px;
+      }
+
+      .topbar,
+      .footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        font-size: 13px;
+        font-weight: 750;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 31px;
+        height: 31px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--green);
+        color: white;
+        font-family: Georgia, serif;
+        font-size: 18px;
+      }
+
+      .eyebrow,
+      .footer {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .eyebrow {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+      }
+
+      .live-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--yellow);
+      }
+
+      main {
+        display: grid;
+        place-items: center;
+        padding: 38px 0;
+      }
+
+      .timer {
+        width: min(100%, 490px);
+        padding: 0 12px;
+        text-align: center;
+        animation: arrive 480ms ease-out both;
+      }
+
+      h1 {
+        margin: 0 0 27px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 32px;
+        font-weight: 500;
+      }
+
+      .clock-frame {
+        position: relative;
+        display: grid;
+        min-height: 203px;
+        place-items: center;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        background: var(--white);
+        box-shadow: 0 12px 32px #19362f0c;
+      }
+
+      .clock-frame::before,
+      .clock-frame::after {
+        position: absolute;
+        width: 185px;
+        height: 185px;
+        border: 1px solid #dfe8e2;
+        border-radius: 50%;
+        content: "";
+      }
+
+      .clock-frame::after {
+        width: 151px;
+        height: 151px;
+        border-color: #e9efeb;
+      }
+
+      .time {
+        z-index: 1;
+        color: var(--green-deep);
+        font-family: "Courier New", monospace;
+        font-size: clamp(64px, 18vw, 92px);
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+      }
+
+      .status {
+        min-height: 20px;
+        margin: 14px 0 28px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .status[data-state="running"] {
+        color: var(--green);
+      }
+
+      .status[data-state="complete"] {
+        color: var(--coral-dark);
+        font-weight: 700;
+      }
+
+      .field-label {
+        display: block;
+        margin-bottom: 9px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 750;
+        text-align: left;
+        text-transform: uppercase;
+      }
+
+      .input-wrap {
+        display: flex;
+        height: 54px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: var(--white);
+        transition: border-color 140ms ease, box-shadow 140ms ease;
+      }
+
+      .input-wrap:focus-within {
+        border-color: var(--green);
+        box-shadow: 0 0 0 3px #1d59481a;
+      }
+
+      .input-wrap[aria-invalid="true"] {
+        border-color: var(--coral);
+      }
+
+      input {
+        width: 100%;
+        height: 100%;
+        padding: 0 16px;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--ink);
+        font: inherit;
+        font-size: 16px;
+      }
+
+      input::placeholder {
+        color: #9aa9a2;
+      }
+
+      .unit {
+        flex: 0 0 auto;
+        padding-right: 16px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .error {
+        min-height: 17px;
+        margin: 7px 0 0;
+        color: var(--coral-dark);
+        font-size: 11px;
+        text-align: left;
+      }
+
+      .error:empty {
+        visibility: hidden;
+      }
+
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr 54px;
+        gap: 10px;
+        margin-top: 17px;
+      }
+
+      button {
+        height: 52px;
+        border: 0;
+        border-radius: 4px;
+        cursor: pointer;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 750;
+        transition: background-color 140ms ease, transform 140ms ease;
+      }
+
+      button:focus-visible {
+        outline: 3px solid var(--yellow);
+        outline-offset: 3px;
+      }
+
+      button:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+
+      .start-button {
+        background: var(--coral);
+        color: white;
+      }
+
+      .start-button:hover:not(:disabled) {
+        background: var(--coral-dark);
+      }
+
+      .start-button:disabled {
+        background: #cbd4cf;
+        color: #788780;
+        cursor: not-allowed;
+      }
+
+      .reset-button {
+        display: grid;
+        place-items: center;
+        background: var(--green);
+        color: white;
+      }
+
+      .reset-button:hover {
+        background: var(--green-deep);
+      }
+
+      .reset-button svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .footer {
+        min-height: 28px;
+        border-top: 1px solid var(--line);
+        padding-top: 14px;
+        font-weight: 600;
+      }
+
+      @keyframes arrive {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">s</span> Stillpoint</div>
+        <div class="eyebrow"><span class="live-dot" aria-hidden="true"></span> A little room to focus</div>
+      </header>
+
+      <main>
+        <section class="timer" aria-labelledby="title">
+          <h1 id="title">Study Timer</h1>
+          <div class="clock-frame">
+            <div class="time" id="time-display" role="timer" aria-label="Time remaining" aria-live="off">00:00</div>
+          </div>
+          <p class="status" id="timer-status" data-state="ready" aria-live="polite">Ready when you are</p>
+
+          <form id="timer-form" novalidate>
+            <label class="field-label" for="duration">Set your focus time</label>
+            <div class="input-wrap" id="input-wrap">
+              <input id="duration" name="duration" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 25" aria-describedby="duration-error" />
+              <span class="unit" aria-hidden="true">minutes</span>
+            </div>
+            <p class="error" id="duration-error" role="alert"></p>
+            <div class="actions">
+              <button class="start-button" id="start-button" type="submit" disabled>Start</button>
+              <button class="reset-button" id="reset-button" type="button" aria-label="Reset timer" title="Reset timer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 12a9 9 0 1 0 2.64-6.36L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+              </button>
+            </div>
+          </form>
+        </section>
+      </main>
+
+      <footer class="footer"><span>One thing at a time.</span><span>Make space for focus</span></footer>
+    </div>
+
+    <script>
+      const form = document.querySelector("#timer-form");
+      const durationInput = document.querySelector("#duration");
+      const inputWrap = document.querySelector("#input-wrap");
+      const errorMessage = document.querySelector("#duration-error");
+      const timeDisplay = document.querySelector("#time-display");
+      const timerStatus = document.querySelector("#timer-status");
+      const startButton = document.querySelector("#start-button");
+      const resetButton = document.querySelector("#reset-button");
+
+      let remainingSeconds = 0;
+      let intervalId = null;
+      let deadline = 0;
+      let audioContext = null;
+      let isPaused = false;
+
+      function formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainder = seconds % 60;
+        return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+      }
+
+      function setStatus(message, state) {
+        timerStatus.textContent = message;
+        timerStatus.dataset.state = state;
+      }
+
+      function readDuration() {
+        const value = durationInput.value.trim();
+        if (!/^\d+$/.test(value)) return null;
+        const minutes = Number(value);
+        const seconds = minutes * 60;
+        return Number.isSafeInteger(minutes) && minutes > 0 && Number.isSafeInteger(seconds) ? seconds : null;
+      }
+
+      function updateInput() {
+        const seconds = readDuration();
+        const hasValue = durationInput.value.trim().length > 0;
+        const valid = seconds !== null;
+
+        startButton.disabled = !valid;
+        durationInput.setAttribute("aria-invalid", String(hasValue && !valid));
+        inputWrap.setAttribute("aria-invalid", String(hasValue && !valid));
+        errorMessage.textContent = hasValue && !valid ? "Enter a positive whole number of minutes." : "";
+
+        if (valid) {
+          remainingSeconds = seconds;
+          timeDisplay.textContent = formatTime(remainingSeconds);
+          setStatus(isPaused ? "Paused" : "Ready when you are", isPaused ? "paused" : "ready");
+        } else if (intervalId === null) {
+          remainingSeconds = 0;
+          timeDisplay.textContent = "00:00";
+          if (!hasValue) setStatus("Ready when you are", "ready");
+        }
+      }
+
+      function playChime() {
+        if (!audioContext) return;
+        const now = audioContext.currentTime;
+        [783.99, 987.77, 1174.66].forEach((frequency, index) => {
+          const startAt = now + index * 0.16;
+          const oscillator = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          oscillator.type = "sine";
+          oscillator.frequency.value = frequency;
+          gain.gain.setValueAtTime(0.0001, startAt);
+          gain.gain.exponentialRampToValueAtTime(0.18, startAt + 0.025);
+          gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.65);
+          oscillator.connect(gain);
+          gain.connect(audioContext.destination);
+          oscillator.start(startAt);
+          oscillator.stop(startAt + 0.67);
+        });
+      }
+
+      function finishTimer() {
+        clearInterval(intervalId);
+        intervalId = null;
+        deadline = 0;
+        remainingSeconds = 0;
+        isPaused = false;
+        timeDisplay.textContent = "00:00";
+        startButton.textContent = "Start";
+        durationInput.disabled = false;
+        setStatus("Time's up. Nice work.", "complete");
+        playChime();
+      }
+
+      function tick() {
+        remainingSeconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+        timeDisplay.textContent = formatTime(remainingSeconds);
+        if (remainingSeconds === 0) finishTimer();
+      }
+
+      function pauseTimer() {
+        remainingSeconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+        clearInterval(intervalId);
+        intervalId = null;
+        deadline = 0;
+        timeDisplay.textContent = formatTime(remainingSeconds);
+
+        if (remainingSeconds === 0) {
+          finishTimer();
+          return;
+        }
+
+        startButton.textContent = "Start";
+        durationInput.disabled = false;
+        isPaused = true;
+        setStatus("Paused", "paused");
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (intervalId !== null) {
+          pauseTimer();
+          return;
+        }
+
+        const seconds = isPaused ? remainingSeconds : readDuration();
+        if (seconds === null) {
+          updateInput();
+          return;
+        }
+
+        isPaused = false;
+        remainingSeconds = seconds;
+        deadline = Date.now() + remainingSeconds * 1000;
+        intervalId = setInterval(tick, 1000);
+        startButton.textContent = "Pause";
+        durationInput.disabled = true;
+        setStatus("Focus in progress", "running");
+        if (window.AudioContext) {
+          audioContext ||= new AudioContext();
+          if (audioContext.state === "suspended") await audioContext.resume();
+        }
+      });
+
+      durationInput.addEventListener("input", updateInput);
+
+      resetButton.addEventListener("click", () => {
+        clearInterval(intervalId);
+        intervalId = null;
+        deadline = 0;
+        remainingSeconds = 0;
+        isPaused = false;
+        durationInput.disabled = false;
+        durationInput.value = "";
+        startButton.disabled = true;
+        startButton.textContent = "Start";
+        durationInput.setAttribute("aria-invalid", "false");
+        inputWrap.setAttribute("aria-invalid", "false");
+        errorMessage.textContent = "";
+        timeDisplay.textContent = "00:00";
+        setStatus("Ready when you are", "ready");
+      });
+    </script>
+  </body>
+</html>
