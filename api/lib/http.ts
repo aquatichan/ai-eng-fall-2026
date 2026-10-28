@@ -1,0 +1,50 @@
+export function json(body: unknown, status = 200): Response {
+  return Response.json(body, { status });
+}
+
+export function error(status: number, message: string): Response {
+  return json({ error: message }, status);
+}
+
+// Returns the parsed JSON object, or null if the body isn't a JSON object.
+export async function readJsonObject(
+  req: Request,
+): Promise<Record<string, unknown> | null> {
+  try {
+    const body = await req.json();
+    return body && typeof body === "object" && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+// Trimmed string, or null when missing/blank. Throws on wrong type or too long.
+export function optionalString(
+  value: unknown,
+  field: string,
+  maxLength: number,
+): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string") throw new ValidationError(`${field} must be a string`);
+  const trimmed = value.trim();
+  if (trimmed.length > maxLength) {
+    throw new ValidationError(`${field} must be at most ${maxLength} characters`);
+  }
+  return trimmed === "" ? null : trimmed;
+}
+
+export function requiredString(value: unknown, field: string, maxLength: number): string {
+  const s = optionalString(value, field, maxLength);
+  if (s === null) throw new ValidationError(`${field} is required`);
+  return s;
+}
+
+export class ValidationError extends Error {}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isUuid(value: unknown): value is string {
+  return typeof value === "string" && UUID_RE.test(value);
+}
