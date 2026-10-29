@@ -45,7 +45,7 @@ You need three OAuth clients in one Google Cloud project (APIs & Services → Cr
 | **Android** | package `com.aquatichan.autocontact`, SHA-1 from `cd app/android && ./gradlew signingReport` (debug variant) | nothing to paste; Google matches the package + SHA-1 |
 | **iOS** | bundle ID `com.aquatichan.autocontact` | `app/ios/Flutter/GoogleSignIn.xcconfig` |
 
-In Supabase's Google provider, also turn on **Skip nonce check** (iOS sign-in fails without it).
+In Supabase's Google provider, put the Web, iOS and Android client IDs in **Client IDs** (comma-separated, Web first), the Web client's secret in **Client Secret**, and turn on **Skip nonce check** (iOS sign-in fails without it).
 
 Then:
 
