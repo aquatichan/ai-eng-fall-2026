@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { error, json, readJsonObject, requiredString, ValidationError } from "@/lib/http";
 import { generateJoinCode } from "@/lib/joinCode";
+import { ensureMember } from "@/lib/members";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 const GROUP_COLUMNS = "id, name, join_code, owner_id, created_at";
@@ -31,8 +32,8 @@ export async function GET(req: Request) {
   });
 }
 
-// POST /api/groups { name }: creates a group you own and returns its join code.
-// The owner is not added as a member; they add themselves via POST /api/members.
+// POST /api/groups { name }: creates a group you own, adds you to its roster,
+// and returns its join code.
 export async function POST(req: Request) {
   const user = await requireUser(req);
   if (user instanceof Response) return user;
@@ -54,7 +55,11 @@ export async function POST(req: Request) {
       .insert({ name, join_code: generateJoinCode(), owner_id: user.id })
       .select(GROUP_COLUMNS)
       .single();
-    if (!insErr) return json({ group: { ...data, is_owner: true } }, 201);
+    if (!insErr) {
+      const memberErr = await ensureMember(supabaseAdmin(), data.id, user);
+      if (memberErr) return error(500, memberErr.message);
+      return json({ group: { ...data, is_owner: true } }, 201);
+    }
     if (insErr.code !== "23505") return error(500, insErr.message);
   }
   return error(500, "Could not generate a unique join code");

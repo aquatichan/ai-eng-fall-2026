@@ -1,24 +1,26 @@
-import { randomBytes } from "node:crypto";
+import { randomInt } from "node:crypto";
 
-// Crockford base32: no I, L, O, U, so codes are easy to read aloud and type.
-const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-export const JOIN_CODE_LENGTH = 12; // 60 bits of randomness
+// Codes are 3 letters then 3 digits, shown as "ABC-123". Short enough to read
+// aloud, at the cost of guessability: 26^3 * 10^3 ≈ 17.6M codes.
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+export const JOIN_CODE_RE = /^[A-Z]{3}[0-9]{3}$/;
 
 export function generateJoinCode(): string {
-  // 256 is a multiple of 32, so `byte & 31` is unbiased.
-  return Array.from(randomBytes(JOIN_CODE_LENGTH), (b) => ALPHABET[b & 31]).join("");
+  let code = "";
+  for (let i = 0; i < 3; i++) code += LETTERS[randomInt(LETTERS.length)];
+  for (let i = 0; i < 3; i++) code += String(randomInt(10));
+  return code;
 }
 
-// Accepts user input like "abcd-efgh-jkmn" and returns the stored form,
-// or null if it can't be a valid code.
+// Accepts input like "abc-123" or "ABC 123" and returns the stored form,
+// or null if it can't be a valid code. Letter/digit look-alikes are fixed by
+// position: "0" in the letter half is O, "O" in the digit half is 0.
 export function normalizeJoinCode(input: unknown): string | null {
   if (typeof input !== "string") return null;
-  const code = input
-    .toUpperCase()
-    .replace(/[\s-]/g, "")
-    .replace(/[IL]/g, "1")
-    .replace(/O/g, "0");
-  if (code.length !== JOIN_CODE_LENGTH) return null;
-  for (const ch of code) if (!ALPHABET.includes(ch)) return null;
-  return code;
+  const raw = input.toUpperCase().replace(/[\s-]/g, "");
+  if (raw.length !== 6) return null;
+  const letters = raw.slice(0, 3).replace(/0/g, "O").replace(/1/g, "I");
+  const digits = raw.slice(3).replace(/O/g, "0").replace(/[IL]/g, "1");
+  const code = letters + digits;
+  return JOIN_CODE_RE.test(code) ? code : null;
 }

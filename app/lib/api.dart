@@ -41,6 +41,35 @@ class Api {
         .toList();
   }
 
+  Future<Group> createGroup(String name) async {
+    final body = await _send('POST', '/api/groups', {'name': name});
+    return Group.fromJson(body['group'] as Map<String, dynamic>);
+  }
+
+  /// Joins by code. The server ignores case, dashes and spaces.
+  Future<Group> joinGroup(String code) async {
+    final body = await _send('POST', '/api/groups/join', {'code': code});
+    return Group.fromJson(body['group'] as Map<String, dynamic>);
+  }
+
+  Future<GroupDetail> getGroup(String id) async {
+    final body = await _send('GET', '/api/groups/${Uri.encodeComponent(id)}');
+    return GroupDetail.fromJson(body);
+  }
+
+  /// Your contact card, or null if you haven't set one up yet.
+  Future<ContactCard?> getProfile() async {
+    final body = await _send('GET', '/api/profile');
+    final profile = body['profile'];
+    return profile == null ? null : ContactCard.fromJson(profile as Map<String, dynamic>);
+  }
+
+  /// Saves your card. Every group you're in shows it right away.
+  Future<ContactCard> saveProfile(ContactCard card) async {
+    final body = await _send('PUT', '/api/profile', card.toJson());
+    return ContactCard.fromJson(body['profile'] as Map<String, dynamic>);
+  }
+
   Future<Map<String, dynamic>> _send(String method, String path, [Object? body]) async {
     final token = await _accessToken();
     if (token == null) throw ApiException(401, 'Not signed in');

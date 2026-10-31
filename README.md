@@ -8,7 +8,7 @@ Flutter app (Android/iOS)  ->  Next.js API (api/, on Vercel)  ->  Supabase (Post
 
 ## Layout
 
-- `supabase/migrations/001_init.sql`: the `groups` and `members` tables. RLS is on with no policies, so only the API (service role) can touch them.
+- `supabase/migrations/`: `001_init.sql` creates `groups` and `members`; `002_profiles_short_codes.sql` adds `profiles` (one contact card per user, shared by all their groups) and switches join codes to `ABC123`. RLS is on with no policies, so only the API (service role) can touch them.
 - `api/`: Next.js route handlers. Every route requires `Authorization: Bearer <Supabase access token>`.
 - `app/`: the Flutter app (Android + iOS). Bundle/application ID: `com.aquatichan.autocontact`.
 
@@ -16,17 +16,20 @@ Flutter app (Android/iOS)  ->  Next.js API (api/, on Vercel)  ->  Supabase (Post
 
 | Route | Body | Returns |
 | --- | --- | --- |
+| `GET /api/profile` | | `{ profile }`: your card, or `null` before onboarding |
+| `PUT /api/profile` | `{ first_name, last_name?, phones?, emails?, company?, job_title?, website?, address?, birthday? }` | `{ profile }`. Replaces your card; every group shows it at once. |
 | `GET /api/groups` | | `{ groups }`: groups you own or belong to |
-| `POST /api/groups` | `{ name }` | `{ group }` with its `join_code` (201). The owner is **not** added as a member. |
-| `POST /api/groups/join` | `{ code }` | `{ group, member }`. Creates your entry from your Google profile; idempotent. |
-| `POST /api/members` | `{ group_id, name, phone?, email?, org? }` | `{ member }`. Upserts your own entry; you must own or have joined the group. |
-| `GET /api/groups/[id]` | | `{ group, members, me }`. 403 unless you're the owner or a member. |
+| `POST /api/groups` | `{ name }` | `{ group }` with its `join_code` (201). You're added to the roster. |
+| `POST /api/groups/join` | `{ code }` | `{ group, member }`. Idempotent. |
+| `GET /api/groups/[id]` | | `{ group, members, me_id }`. Each member is a card plus `user_id` and `is_owner`. 403 unless you're in the group. |
 
-Join codes are 12 Crockford base32 characters (no I/L/O/U). Input is case-insensitive and ignores dashes and spaces, so `abcd-efgh-jkmn` works.
+`phones` is a list of `{ label, number }` (labels: mobile, iphone, home, work, main, pager, other) and `emails` a list of `{ label, address }` (home, work, school, icloud, other), up to 5 each. `birthday` is `YYYY-MM-DD`.
+
+Join codes are 3 letters then 3 digits, shown as `ABC-123`. Input is case-insensitive and ignores dashes and spaces; `0`/`O` and `1`/`I` are fixed by position. That's about 17.6M codes, so they're guessable by someone determined; fine for now, but add rate limiting or longer codes before real use.
 
 ## Setup
 
-1. Create a Supabase project. In the SQL editor, run `supabase/migrations/001_init.sql`.
+1. Create a Supabase project. In the SQL editor, run each file in `supabase/migrations/` in order.
 2. Copy `api/.env.example` to `api/.env.local` and fill in `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API).
 3. Run locally:
    ```bash
@@ -58,3 +61,10 @@ Then:
    On iOS, open `app/ios/Runner.xcworkspace` in Xcode once and pick your team under Signing & Capabilities.
 
 **L13 step 2 is done when** you can sign in on each phone and land on "Your groups" showing "No groups yet." (a 200 from `GET /api/groups`).
+
+## What the app does
+
+- **Onboarding:** after first sign-in you set up your card once (or fill it from your own contact in the phone). Every group uses it.
+- **Groups:** create one or join with a code; lists refresh every 10 seconds while open, on returning to the app, and on pull-down.
+- **Sync to Contacts:** adds new people and merges new numbers, emails and details into people you already have. It never deletes anything or renames anyone.
+- **Cards:** tap anyone to see their card; your own card has a QR code any phone camera can scan to add you, no app needed.

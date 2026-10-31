@@ -1,10 +1,11 @@
-import { displayName, requireUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { error, json, readJsonObject } from "@/lib/http";
 import { normalizeJoinCode } from "@/lib/joinCode";
+import { ensureMember } from "@/lib/members";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 // POST /api/groups/join { code }: adds you to the group with that code.
-// Creates your member entry from your Google profile; edit it via POST /api/members.
+// Your card in the group is your profile (PUT /api/profile).
 // Joining a group you're already in is a no-op that returns your existing entry.
 export async function POST(req: Request) {
   const user = await requireUser(req);
@@ -23,15 +24,7 @@ export async function POST(req: Request) {
   if (gErr) return error(500, gErr.message);
   if (!group) return error(404, "No group with that code");
 
-  const { error: insErr } = await db.from("members").upsert(
-    {
-      group_id: group.id,
-      user_id: user.id,
-      name: displayName(user),
-      email: user.email ?? "",
-    },
-    { onConflict: "group_id,user_id", ignoreDuplicates: true },
-  );
+  const insErr = await ensureMember(db, group.id, user);
   if (insErr) return error(500, insErr.message);
 
   const { data: member, error: mErr } = await db

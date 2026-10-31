@@ -1,5 +1,7 @@
+// Every response is per-user and changes as people join or edit their cards,
+// so nothing between the app and the API may cache it.
 export function json(body: unknown, status = 200): Response {
-  return Response.json(body, { status });
+  return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 }
 
 export function error(status: number, message: string): Response {
