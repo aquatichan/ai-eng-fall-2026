@@ -1,0 +1,6 @@
+{
+  "API_BASE_URL": "https://ai-eng-fall-2026.vercel.app",
+  "SUPABASE_URL": "https://YOUR-PROJECT.supabase.co",
+  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_... (or the legacy anon key)",
+  "GOOGLE_WEB_CLIENT_ID": "123-web.apps.googleusercontent.com"
+}

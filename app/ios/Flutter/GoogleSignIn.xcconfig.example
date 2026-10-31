@@ -1,0 +1,6 @@
+// Copy to GoogleSignIn.xcconfig (gitignored) and fill in your iOS OAuth client.
+// Client ID: Google Cloud Console -> Credentials -> iOS client (bundle id com.aquatichan.autocontact).
+// Reversed client ID is the same string reversed by dot segments:
+//   123-abc.apps.googleusercontent.com -> com.googleusercontent.apps.123-abc
+GOOGLE_IOS_CLIENT_ID = 123-abc.apps.googleusercontent.com
+GOOGLE_REVERSED_CLIENT_ID = com.googleusercontent.apps.123-abc
