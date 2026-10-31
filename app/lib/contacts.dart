@@ -54,18 +54,33 @@ const _props = {
 /// who are. Never deletes anything from an existing contact.
 ///
 /// A member is matched to a contact by the link saved the last time we synced
-/// them, or else by a shared phone number or email.
-Future<SyncResult> syncToContacts(List<Member> members) async {
+/// them, or else by a shared phone number or email. Each contact matches at
+/// most one member, and your own contact card is never touched, so two people
+/// who share an office line don't get merged into one contact (or into you).
+Future<SyncResult> syncToContacts(List<Member> members, {required String meId}) async {
   await _requireAccess();
   final existing = await FlutterContacts.getAll(properties: _props);
   final byId = {for (final c in existing) c.id: c};
   final links = await _ContactLinks.load();
+  final prefs = await SharedPreferences.getInstance();
+
+  final matches = <Member, Contact>{};
+  final claimed = <String?>{prefs.getString(_myContactKey(meId))};
+  // Saved links first, so a key match can't steal someone's linked contact.
+  for (final m in members) {
+    final linked = byId[links[m.userId]];
+    if (linked != null && claimed.add(linked.id)) matches[m] = linked;
+  }
+  for (final m in members.where((m) => !matches.containsKey(m))) {
+    final match = findMatch(m.card, existing.where((c) => !claimed.contains(c.id)).toList());
+    if (match != null && claimed.add(match.id)) matches[m] = match;
+  }
 
   final toCreate = <Member>[];
   final toUpdate = <Contact>[];
   var unchanged = 0;
   for (final m in members) {
-    final match = byId[links[m.userId]] ?? findMatch(m.card, existing);
+    final match = matches[m];
     if (match == null) {
       toCreate.add(m);
       continue;
@@ -88,29 +103,29 @@ Future<SyncResult> syncToContacts(List<Member> members) async {
 
 /// Opens the system contact picker so you can choose your own card, and
 /// remembers it for [reloadMyCard].
-Future<ContactCard?> pickMyCard() async {
+Future<ContactCard?> pickMyCard(String meId) async {
   // Android only returns the picked contact's details with READ_CONTACTS.
   if (Platform.isAndroid) await _requireAccess();
   final contact = await FlutterContacts.native.showPicker(properties: _props);
   if (contact == null) return null;
   final prefs = await SharedPreferences.getInstance();
-  if (contact.id != null) await prefs.setString(_myContactKey, contact.id!);
+  if (contact.id != null) await prefs.setString(_myContactKey(meId), contact.id!);
   return cardFromContact(contact);
 }
 
 /// Re-reads the contact you picked with [pickMyCard], so edits you made in
 /// the Contacts app flow back into AutoContact. Null if none was picked or it
 /// was deleted.
-Future<ContactCard?> reloadMyCard() async {
-  final id = (await SharedPreferences.getInstance()).getString(_myContactKey);
+Future<ContactCard?> reloadMyCard(String meId) async {
+  final id = (await SharedPreferences.getInstance()).getString(_myContactKey(meId));
   if (id == null) return null;
   await _requireAccess();
   final contact = await FlutterContacts.get(id, properties: _props);
   return contact == null ? null : cardFromContact(contact);
 }
 
-Future<bool> hasLinkedMyCard() async =>
-    (await SharedPreferences.getInstance()).getString(_myContactKey) != null;
+Future<bool> hasLinkedMyCard(String meId) async =>
+    (await SharedPreferences.getInstance()).getString(_myContactKey(meId)) != null;
 
 Future<void> openContactsSettings() => FlutterContacts.permissions.openSettings();
 
@@ -121,8 +136,11 @@ String cardVCard(ContactCard card) => FlutterContacts.vCard.export(toDeviceConta
 /// bytes means bigger modules, which cameras read more reliably off a screen.
 /// Scanning it with the iPhone or Android camera offers "Add to Contacts".
 String qrVCard(ContactCard card) {
-  String esc(String s) =>
-      s.replaceAll(r'\', r'\\').replaceAll(',', r'\,').replaceAll(';', r'\;').replaceAll('\n', r'\n');
+  String esc(String s) => s
+      .replaceAll(r'\', r'\\')
+      .replaceAll(',', r'\,')
+      .replaceAll(';', r'\;')
+      .replaceAll(RegExp(r'\r\n|\r|\n'), r'\n');
   final b = card.birthday;
   return [
     'BEGIN:VCARD',
@@ -131,8 +149,8 @@ String qrVCard(ContactCard card) {
     'FN:${esc(card.fullName)}',
     if (_present(card.company)) 'ORG:${esc(card.company!)}',
     if (_present(card.jobTitle)) 'TITLE:${esc(card.jobTitle!)}',
-    for (final p in card.phones) 'TEL;TYPE=${_vCardPhoneType(p.label)}:${p.value}',
-    for (final e in card.emails) 'EMAIL;TYPE=${e.label == 'work' ? 'WORK' : 'HOME'}:${e.value}',
+    for (final p in card.phones) 'TEL;TYPE=${_vCardPhoneType(p.label)}:${esc(p.value)}',
+    for (final e in card.emails) 'EMAIL;TYPE=${e.label == 'work' ? 'WORK' : 'HOME'}:${esc(e.value)}',
     if (_present(card.website)) 'URL:${esc(card.website!)}',
     if (_present(card.address)) 'ADR:;;${esc(card.address!)};;;;',
     if (b != null) 'BDAY:${b.year.toString().padLeft(4, '0')}${b.month.toString().padLeft(2, '0')}${b.day.toString().padLeft(2, '0')}',
@@ -195,7 +213,10 @@ Contact toDeviceContact(ContactCard card, {bool? android}) {
   );
 }
 
-/// Your card from a contact in the phone, for onboarding and "update from my card".
+/// Your card from a contact in the phone, for onboarding and "update from my
+/// card". Cleans values up to what the API accepts: phone numbers copied on
+/// iOS often carry invisible direction marks, and contacts can hold invalid
+/// emails or very long fields.
 ContactCard cardFromContact(Contact c) {
   final names = (c.displayName ?? '').trim().split(RegExp(r'\s+'));
   final first = _present(c.name?.first) ? c.name!.first! : names.first;
@@ -204,21 +225,47 @@ ContactCard cardFromContact(Contact c) {
   final address = c.addresses.firstOrNull;
   final birthday = c.events.where((e) => e.label.label == EventLabel.birthday && e.year != null).firstOrNull;
   return ContactCard(
-    firstName: first.isEmpty ? 'Me' : first,
-    lastName: _present(last) ? last : null,
-    phones: [for (final p in c.phones.take(5)) LabeledValue(_cardPhoneLabel(p.label.label), p.number)],
-    emails: [for (final e in c.emails.take(5)) LabeledValue(_cardEmailLabel(e.label.label), e.address)],
-    company: org?.name,
-    jobTitle: org?.jobTitle,
-    website: c.websites.firstOrNull?.url,
-    address: address == null ? null : _addressText(address),
+    firstName: _clean(first, 100) ?? 'Me',
+    lastName: _clean(last, 100),
+    phones: [
+      for (final p in c.phones)
+        if (_cleanPhone(p.number) case final number?) LabeledValue(_cardPhoneLabel(p.label.label), number),
+    ].take(5).toList(),
+    emails: [
+      for (final e in c.emails)
+        if (_emailRe.hasMatch(e.address.trim())) LabeledValue(_cardEmailLabel(e.label.label), e.address.trim()),
+    ].take(5).toList(),
+    company: _clean(org?.name, 100),
+    jobTitle: _clean(org?.jobTitle, 100),
+    website: _clean(c.websites.firstOrNull?.url, 200),
+    address: address == null ? null : _clean(_addressText(address), 300, multiline: true),
     birthday: birthday == null ? null : DateTime(birthday.year!, birthday.month, birthday.day),
   );
 }
 
+final _emailRe = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+
+/// Drops control characters (keeping line breaks only if [multiline]),
+/// trims, and caps the length. Null if nothing is left.
+String? _clean(String? s, int max, {bool multiline = false}) {
+  if (s == null) return null;
+  var out = s.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+  out = out.replaceAll(RegExp(multiline ? r'[\x00-\x09\x0B-\x1F\x7F]' : r'[\x00-\x1F\x7F]'), ' ').trim();
+  if (out.isEmpty) return null;
+  return out.length > max ? out.substring(0, max).trim() : out;
+}
+
+/// Keeps only the characters the API allows in a phone number.
+String? _cleanPhone(String number) {
+  final out = number.replaceAll(RegExp(r'[^0-9+()\-.\s]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+  return out.replaceAll(RegExp(r'\D'), '').length >= 3 ? (out.length > 40 ? out.substring(0, 40) : out) : null;
+}
+
 /// The contact that shares a phone number or email with [card], if any.
 Contact? findMatch(ContactCard card, List<Contact> existing) {
-  final keys = _keys(card.phones.map((p) => p.value), card.emails.map((e) => e.value));
+  // A "main" number is usually a shared office line, so it doesn't identify anyone.
+  final phones = card.phones.where((p) => p.label != 'main').map((p) => p.value);
+  final keys = _keys(phones, card.emails.map((e) => e.value));
   if (keys.isEmpty) return null;
   for (final c in existing) {
     if (_keys(c.phones.map((p) => p.number), c.emails.map((e) => e.address)).intersection(keys).isNotEmpty) {
@@ -324,7 +371,9 @@ String _fileName(String groupName) {
   return cleaned.isEmpty ? 'roster' : cleaned;
 }
 
-const _myContactKey = 'my_contact_id';
+/// Per AutoContact account, so whoever signs in next on this phone doesn't
+/// inherit the previous person's "my contact card".
+String _myContactKey(String meId) => 'my_contact_id:$meId';
 
 /// Which phone contact each AutoContact user was saved as, so a person who
 /// changes both their number and email still updates the same contact.

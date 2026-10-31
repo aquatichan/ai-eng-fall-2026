@@ -63,6 +63,35 @@ void main() {
     });
   });
 
+  group('cardFromContact cleanup', () {
+    test('strips invisible marks from numbers and drops junk', () {
+      final card = cardFromContact(Contact(
+        name: const Name(first: 'Ana\r\n'),
+        phones: [Phone(number: '\u202d+1 (555) 010-2030\u202c'), Phone(number: 'n/a')],
+        emails: [Email(address: 'not-an-email'), Email(address: ' ana@crew.co ')],
+        addresses: [const Address(formatted: '1 Main St\r\nSpringfield')],
+      ));
+      expect(card.firstName, 'Ana');
+      expect(card.phones.map((p) => p.value), ['+1 (555) 010-2030']);
+      expect(card.emails.map((e) => e.value), ['ana@crew.co']);
+      expect(card.address, '1 Main St\nSpringfield');
+    });
+
+    test('caps at five phones and long fields', () {
+      final card = cardFromContact(Contact(
+        name: Name(first: 'A' * 150),
+        phones: [for (var i = 0; i < 8; i++) Phone(number: '555 010 000$i')],
+      ));
+      expect(card.firstName.length, 100);
+      expect(card.phones, hasLength(5));
+    });
+  });
+
+  test('findMatch ignores shared main lines', () {
+    const card = ContactCard(firstName: 'Cy', phones: [LabeledValue('main', '555 010 5000')]);
+    expect(findMatch(card, [Contact(id: 'office', phones: [Phone(number: '5550105000')])]), isNull);
+  });
+
   group('mergeInto', () {
     test('adds new details and never removes existing ones', () {
       final existing = Contact(
@@ -107,7 +136,7 @@ void main() {
   });
 
   test('qrVCard is compact and escapes special characters', () {
-    final vcf = qrVCard(ana.copyWithAddress('1 Main St; Apt 2\nSpringfield, IL'));
+    final vcf = qrVCard(ana.copyWithAddress('1 Main St; Apt 2\r\nSpringfield, IL'));
     final lines = vcf.split('\r\n');
     expect(lines.first, 'BEGIN:VCARD');
     expect(lines.last, 'END:VCARD');

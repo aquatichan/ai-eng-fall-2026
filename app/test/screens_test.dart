@@ -68,7 +68,7 @@ void main() {
         });
         await _pump(
           tester,
-          GroupDetailScreen(api: api, group: Group.fromJson(_group), profile: ValueNotifier(null)),
+          GroupDetailScreen(api: api, group: Group.fromJson(_group), profile: ValueNotifier(null), meId: 'u2'),
           brightness,
         );
         expect(find.text('ABC-123'), findsOneWidget);
@@ -78,7 +78,7 @@ void main() {
       });
 
       testWidgets('onboarding with a full card', (tester) async {
-        await _pump(tester, ProfileScreen(api: _apiReturning({}), initial: _ana, onboarding: true), brightness);
+        await _pump(tester, ProfileScreen(api: _apiReturning({}), meId: 'u1', initial: _ana, onboarding: true), brightness);
         expect(find.text('Fill in from my contact card'), findsOneWidget);
         await tester.drag(find.byType(ListView), const Offset(0, -3000));
         await tester.pumpAndSettle();
@@ -86,7 +86,7 @@ void main() {
       });
 
       testWidgets("someone else's card", (tester) async {
-        await _pump(tester, CardScreen(member: Member(userId: 'u1', card: _ana, isOwner: true), isMe: false), brightness);
+        await _pump(tester, CardScreen(member: Member(userId: 'u1', card: _ana, isOwner: true), meId: 'u2'), brightness);
         expect(find.text('Save to Contacts'), findsOneWidget);
         expect(find.text('Head Gaffer · Lighting Company International'), findsOneWidget);
       });

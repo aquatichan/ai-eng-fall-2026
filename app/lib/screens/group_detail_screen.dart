@@ -10,9 +10,16 @@ import 'card_screen.dart';
 import 'profile_screen.dart';
 
 class GroupDetailScreen extends StatefulWidget {
-  const GroupDetailScreen({super.key, required this.api, required this.group, required this.profile});
+  const GroupDetailScreen({
+    super.key,
+    required this.api,
+    required this.group,
+    required this.profile,
+    required this.meId,
+  });
 
   final Api api;
+  final String meId;
 
   /// Shown in the app bar while the full detail loads.
   final Group group;
@@ -64,17 +71,19 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> with AutoRefresh 
 
   Future<void> _editProfile() async {
     final saved = await Navigator.of(context).push<ContactCard>(
-      MaterialPageRoute(builder: (_) => ProfileScreen(api: widget.api, initial: widget.profile.value)),
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(api: widget.api, meId: widget.meId, initial: widget.profile.value),
+      ),
     );
     if (saved != null) widget.profile.value = saved;
   }
 
-  void _openCard(Member m, bool isMe) {
+  void _openCard(Member m) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => CardScreen(
           member: m,
-          isMe: isMe,
+          meId: widget.meId,
           onEdit: () async {
             Navigator.of(context).pop();
             await _editProfile();
@@ -102,7 +111,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> with AutoRefresh 
     setState(() => _busy = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final result = await syncToContacts(others);
+      final result = await syncToContacts(others, meId: widget.meId);
       messenger.showSnackBar(SnackBar(content: Text(result.summary)));
     } on ContactsPermissionDenied catch (e) {
       messenger.showSnackBar(
@@ -183,7 +192,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> with AutoRefresh 
                 _MemberTile(
                   member: m,
                   isMe: m.userId == detail.meId,
-                  onTap: () => _openCard(m, m.userId == detail.meId),
+                  onTap: () => _openCard(m),
                 ),
               ],
             ],

@@ -52,7 +52,9 @@ class AuthGate extends StatelessWidget {
       builder: (context, _) {
         final session = auth.currentSession;
         // Keyed by user so switching accounts starts over.
-        return session == null ? const SignInScreen() : ProfileGate(key: ValueKey(session.user.id));
+        return session == null
+            ? const SignInScreen()
+            : ProfileGate(key: ValueKey(session.user.id), meId: session.user.id);
       },
     );
   }
@@ -61,7 +63,9 @@ class AuthGate extends StatelessWidget {
 /// Loads your card, and sends you through onboarding first if you don't
 /// have one yet.
 class ProfileGate extends StatefulWidget {
-  const ProfileGate({super.key});
+  const ProfileGate({super.key, required this.meId});
+
+  final String meId;
 
   @override
   State<ProfileGate> createState() => _ProfileGateState();
@@ -109,8 +113,13 @@ class _ProfileGateState extends State<ProfileGate> {
         return ValueListenableBuilder<ContactCard?>(
           valueListenable: _profile,
           builder: (context, profile, _) => profile == null
-              ? ProfileScreen(api: _api, onboarding: true, onSaved: (card) => _profile.value = card)
-              : GroupsScreen(api: _api, profile: _profile),
+              ? ProfileScreen(
+                  api: _api,
+                  meId: widget.meId,
+                  onboarding: true,
+                  onSaved: (card) => _profile.value = card,
+                )
+              : GroupsScreen(api: _api, profile: _profile, meId: widget.meId),
         );
       },
     );

@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 mixin AutoRefresh<T extends StatefulWidget> on State<T> {
   Timer? _timer;
   AppLifecycleListener? _lifecycle;
+  bool _autoReloading = false;
 
   Duration get refreshEvery => const Duration(seconds: 10);
 
@@ -18,11 +19,24 @@ mixin AutoRefresh<T extends StatefulWidget> on State<T> {
   void initState() {
     super.initState();
     _timer = Timer.periodic(refreshEvery, (_) {
+      if (!mounted) return;
       final foreground = WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
       final onTop = ModalRoute.of(context)?.isCurrent ?? true;
-      if (mounted && foreground && onTop) reload();
+      if (foreground && onTop) _autoReload();
     });
-    _lifecycle = AppLifecycleListener(onResume: () => reload());
+    _lifecycle = AppLifecycleListener(onResume: _autoReload);
+  }
+
+  /// Skips a tick while the previous reload is still out, so a slow network
+  /// doesn't pile up requests or let an old response overwrite a newer one.
+  Future<void> _autoReload() async {
+    if (_autoReloading) return;
+    _autoReloading = true;
+    try {
+      await reload();
+    } finally {
+      _autoReloading = false;
+    }
   }
 
   @override

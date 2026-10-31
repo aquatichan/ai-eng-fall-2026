@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../auth.dart';
+import '../logo.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -42,16 +43,7 @@ class _SignInScreenState extends State<SignInScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(22),
-                      decoration: BoxDecoration(
-                        color: scheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                      child: Icon(Icons.contacts_rounded, size: 52, color: scheme.onPrimaryContainer),
-                    ),
-                  ),
+                  const Center(child: AppLogo(size: 96)),
                   const SizedBox(height: 24),
                   Text(
                     'AutoContact',

@@ -9,9 +9,19 @@ import '../widgets.dart';
 /// Edits your contact card. With [onboarding] it's the first screen after
 /// sign-in: no back button, and [onSaved] is called instead of popping.
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key, required this.api, this.initial, this.onboarding = false, this.onSaved});
+  const ProfileScreen({
+    super.key,
+    required this.api,
+    required this.meId,
+    this.initial,
+    this.onboarding = false,
+    this.onSaved,
+  });
 
   final Api api;
+
+  /// Your user ID, to remember which phone contact is your card.
+  final String meId;
   final ContactCard? initial;
   final bool onboarding;
   final ValueChanged<ContactCard>? onSaved;
@@ -45,7 +55,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _fill(widget.initial ?? _fromGoogleAccount());
-    hasLinkedMyCard().then((linked) {
+    hasLinkedMyCard(widget.meId).then((linked) {
       if (mounted) setState(() => _linkedToContact = linked);
     });
   }
@@ -112,7 +122,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _importFromContacts({required bool reload}) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final card = reload ? await reloadMyCard() : await pickMyCard();
+      final card = reload ? await reloadMyCard(widget.meId) : await pickMyCard(widget.meId);
       if (card == null) {
         if (reload) messenger.showSnackBar(const SnackBar(content: Text("Couldn't find your contact card anymore")));
         return;

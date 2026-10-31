@@ -47,7 +47,7 @@ export function parseCard(body: Record<string, unknown>): Card {
     company: optionalString(body.company, "company", 100),
     job_title: optionalString(body.job_title, "job title", 100),
     website: optionalString(body.website, "website", 200),
-    address: optionalString(body.address, "address", 300),
+    address: optionalString(body.address, "address", 300, { multiline: true }),
     birthday,
   };
 }
@@ -61,6 +61,8 @@ function parseList<K extends "number" | "address">(
 ): ({ label: string } & Record<K, string>)[] {
   if (value === undefined || value === null) return [];
   if (!Array.isArray(value)) throw new ValidationError(`${field} must be a list`);
+  // Blank rows are dropped below, so allow some slack before the real limit.
+  if (value.length > MAX_ENTRIES * 2) throw new ValidationError(`At most ${MAX_ENTRIES} ${field}`);
   const out = [];
   for (const item of value) {
     if (!item || typeof item !== "object") throw new ValidationError(`${field} entries must be objects`);

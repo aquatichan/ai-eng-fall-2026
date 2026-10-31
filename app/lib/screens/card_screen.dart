@@ -13,11 +13,13 @@ import '../widgets.dart';
 /// A person's card, read-only. For someone else it offers "Save to Contacts";
 /// for you it offers [onEdit] and your QR code.
 class CardScreen extends StatefulWidget {
-  const CardScreen({super.key, required this.member, required this.isMe, this.onEdit});
+  const CardScreen({super.key, required this.member, required this.meId, this.onEdit});
 
   final Member member;
-  final bool isMe;
+  final String meId;
   final VoidCallback? onEdit;
+
+  bool get isMe => member.userId == meId;
 
   @override
   State<CardScreen> createState() => _CardScreenState();
@@ -30,7 +32,7 @@ class _CardScreenState extends State<CardScreen> {
     setState(() => _busy = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final result = await syncToContacts([widget.member]);
+      final result = await syncToContacts([widget.member], meId: widget.meId);
       messenger.showSnackBar(SnackBar(content: Text(result.summary)));
     } on ContactsPermissionDenied catch (e) {
       messenger.showSnackBar(

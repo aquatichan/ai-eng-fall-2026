@@ -11,9 +11,10 @@ import 'group_detail_screen.dart';
 import 'profile_screen.dart';
 
 class GroupsScreen extends StatefulWidget {
-  const GroupsScreen({super.key, required this.api, required this.profile});
+  const GroupsScreen({super.key, required this.api, required this.profile, required this.meId});
 
   final Api api;
+  final String meId;
 
   /// Your card. Editing it here updates every screen that shows it.
   final ValueNotifier<ContactCard?> profile;
@@ -57,7 +58,9 @@ class _GroupsScreenState extends State<GroupsScreen> with AutoRefresh {
 
   Future<void> _open(Group group) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => GroupDetailScreen(api: _api, group: group, profile: widget.profile)),
+      MaterialPageRoute(
+        builder: (_) => GroupDetailScreen(api: _api, group: group, profile: widget.profile, meId: widget.meId),
+      ),
     );
     if (mounted) await reload();
   }
@@ -113,7 +116,9 @@ class _GroupsScreenState extends State<GroupsScreen> with AutoRefresh {
 
   Future<void> _editProfile() async {
     final saved = await Navigator.of(context).push<ContactCard>(
-      MaterialPageRoute(builder: (_) => ProfileScreen(api: _api, initial: widget.profile.value)),
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(api: _api, meId: widget.meId, initial: widget.profile.value),
+      ),
     );
     if (saved != null) widget.profile.value = saved;
   }

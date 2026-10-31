@@ -22,14 +22,23 @@ export async function readJsonObject(
   }
 }
 
-// Trimmed string, or null when missing/blank. Throws on wrong type or too long.
+// Control characters other than newline. These end up in other people's
+// Contacts and in .vcf files, where a stray \r or NUL can corrupt the card.
+const CONTROL_RE = /[\u0000-\u0009\u000B-\u001F\u007F]/;
+
+// Trimmed string, or null when missing/blank. Throws on wrong type, too long,
+// control characters, or a line break unless `multiline`.
 export function optionalString(
   value: unknown,
   field: string,
   maxLength: number,
+  { multiline = false } = {},
 ): string | null {
   if (value === undefined || value === null) return null;
   if (typeof value !== "string") throw new ValidationError(`${field} must be a string`);
+  if (CONTROL_RE.test(value) || (!multiline && value.includes("\n"))) {
+    throw new ValidationError(`${field} contains characters that aren't allowed`);
+  }
   const trimmed = value.trim();
   if (trimmed.length > maxLength) {
     throw new ValidationError(`${field} must be at most ${maxLength} characters`);

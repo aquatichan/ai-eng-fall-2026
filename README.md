@@ -25,7 +25,7 @@ Flutter app (Android/iOS)  ->  Next.js API (api/, on Vercel)  ->  Supabase (Post
 
 `phones` is a list of `{ label, number }` (labels: mobile, iphone, home, work, main, pager, other) and `emails` a list of `{ label, address }` (home, work, school, icloud, other), up to 5 each. `birthday` is `YYYY-MM-DD`.
 
-Join codes are 3 letters then 3 digits, shown as `ABC-123`. Input is case-insensitive and ignores dashes and spaces; `0`/`O` and `1`/`I` are fixed by position. That's about 17.6M codes, so they're guessable by someone determined; fine for now, but add rate limiting or longer codes before real use.
+Join codes are 3 letters then 3 digits, shown as `ABC-123`. Input is case-insensitive and ignores dashes and spaces; `0`/`O` and `1`/`I` are fixed by position. That's about 17.6M codes, so joining is capped at 10 wrong codes per account per 15 minutes (`join_failures`, migration 003). Someone with many accounts could still guess; use longer codes before real use.
 
 ## Setup
 
